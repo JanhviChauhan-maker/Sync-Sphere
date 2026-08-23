@@ -1,0 +1,27 @@
+[
+  {
+    "user_id": null,
+    "organization_id": "org-default",
+    "team_name": "Test Team"
+  },
+  {
+    "user_id": "6a740145b0cbf8bfc2dffeab",
+    "organization_id": "6a740145b0cbf8bfc2dffea9",
+    "team_name": "Janhvi"
+  },
+  {
+    "user_id": "userA",
+    "organization_id": "org_test_123",
+    "team_name": "My Team"
+  },
+  {
+    "user_id": "userB",
+    "organization_id": "org_test_123",
+    "team_name": "My Team"
+  },
+  {
+    "user_id": "6a52824ebd1002d93a5495b0",
+    "organization_id": "6a52824dbd1002d93a5495ae",
+    "team_name": "Janhvi"
+  }
+]
