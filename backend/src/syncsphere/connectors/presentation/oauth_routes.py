@@ -293,10 +293,35 @@ async def connector_status(claims: dict = Depends(verify_jwt)):
     google_token = await GoogleTokenDocument.find_one({"organization_id": org_id, "user_id": claims.get("sub")})
     google_status: dict = {"connected": False}
     if google_token:
-        google_status = {
-            "connected": True,
-            "email": google_token.google_email,
-        }
+        # Verify exactly as get_valid_google_token() does (without blocking the UI on HTTP refreshes)
+        from datetime import datetime, timezone
+        
+        is_usable = False
+        has_gmail_scope = "https://www.googleapis.com/auth/gmail.send" in (google_token.scopes or [])
+        
+        if has_gmail_scope:
+            now_ts = datetime.now(timezone.utc).timestamp()
+            expiry = google_token.token_expiry or 0
+            
+            if now_ts < (expiry - 300):
+                # Valid access token
+                is_usable = True
+            elif google_token.refresh_token:
+                # Expired but has refresh token
+                is_usable = True
+        
+        if is_usable:
+            google_status = {
+                "connected": True,
+                "email": google_token.google_email,
+            }
+        else:
+            google_status = {
+                "connected": False,
+                "status": "authorization_required",
+                "email": google_token.google_email,
+                "message": "Token is missing refresh capabilities or required Gmail scope."
+            }
 
     # GitHub
     github_token = await GitHubTokenDocument.find_one({"organization_id": org_id, "user_id": claims.get("sub")})

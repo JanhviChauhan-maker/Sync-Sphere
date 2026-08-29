@@ -41,7 +41,6 @@ async def get_valid_google_token(
             {"google_email": {"$regex": f"^{google_email}$", "$options": "i"}, "organization_id": organization_id, "user_id": user_id}
         )
         if not token_doc:
-            from syncsphere.connectors.application.exceptions import OAuthError
             raise OAuthError(
                 f"Requested Google account '{google_email}' is not authorized for your user. "
                 "Please connect it at /dashboard/connectors."
@@ -55,7 +54,6 @@ async def get_valid_google_token(
     # or the explicit google_email requested.
 
     if not token_doc:
-        from syncsphere.connectors.application.exceptions import OAuthError
         raise OAuthError(
             "Gmail authorization required. Connect Gmail before executing this task."
         )
@@ -65,7 +63,6 @@ async def get_valid_google_token(
         stored_scopes = token_doc.scopes or []
         missing = [req for req in required_scopes if req not in stored_scopes]
         if missing:
-            from syncsphere.connectors.application.exceptions import OAuthError
             raise OAuthError(
                 f"Gmail permission denied (Missing Required Scope: {missing[0]}). "
                 "Please reconnect Google and grant Gmail send permissions."

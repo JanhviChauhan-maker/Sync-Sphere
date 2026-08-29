@@ -148,7 +148,10 @@ app = FastAPI(
 from syncsphere.core.config.app import Environment
 
 # 1. Mount Global Middleware
-origins = [settings.frontend_url, "https://sync-sphere-4.onrender.com"]
+origins = [
+    settings.frontend_url,
+    "https://sync-sphere-4.onrender.com"
+]
 if settings.app.environment == Environment.LOCAL:
     origins.extend([
         "http://localhost:3000",
@@ -158,18 +161,26 @@ if settings.app.environment == Environment.LOCAL:
         "http://localhost:3002",
         "http://127.0.0.1:3002",
         "http://localhost:8000",
-        "http://127.0.0.1:8000"
+        "http://127.0.0.1:8000",
     ])
+    
+# Clean array of empty/None strings to avoid middleware matching issues
+origins = [o.strip() for o in origins if o and isinstance(o, str)]
+
+# Execute custom middlewares AFTER CORS preflight
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(TenantMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
+
+# Execute CORSMiddleware FIRST for all inbound requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
-app.add_middleware(RequestLoggingMiddleware)
-app.add_middleware(TenantMiddleware)
-app.add_middleware(CorrelationIdMiddleware)
 
 # 2. Register Global Exception Handlers
 register_error_handlers(app)
