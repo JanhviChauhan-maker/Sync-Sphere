@@ -148,7 +148,7 @@ app = FastAPI(
 from syncsphere.core.config.app import Environment
 
 # 1. Mount Global Middleware
-origins = [settings.frontend_url]
+origins = [settings.frontend_url, "https://sync-sphere-4.onrender.com"]
 if settings.app.environment == Environment.LOCAL:
     origins.extend([
         "http://localhost:3000",

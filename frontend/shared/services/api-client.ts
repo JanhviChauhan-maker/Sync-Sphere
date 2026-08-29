@@ -3,7 +3,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrgStore } from '../stores/orgStore';
 
 // Determine the base backend URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss://localhost:8000' : 'ws://localhost:8000');
 console.log("API_BASE_URL =", API_BASE_URL);
 
 export const apiClient = axios.create({
@@ -70,8 +71,8 @@ apiClient.interceptors.response.use(
 
     // Do not attempt refresh on auth endpoints (login, register, refresh)
     const isAuthEndpoint = originalRequest?.url?.includes('/v1/auth/login') ||
-                           originalRequest?.url?.includes('/v1/auth/register') ||
-                           originalRequest?.url?.includes('/v1/auth/refresh');
+      originalRequest?.url?.includes('/v1/auth/register') ||
+      originalRequest?.url?.includes('/v1/auth/refresh');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
@@ -96,7 +97,7 @@ apiClient.interceptors.response.use(
         )
           .then(res => {
             const { access_token, refresh_token: new_refresh_token } = res.data.data;
-            
+
             if (typeof window !== 'undefined') {
               localStorage.setItem('access_token', access_token);
               if (new_refresh_token) {

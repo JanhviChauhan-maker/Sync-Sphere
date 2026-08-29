@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useOrgStore } from '../../../shared/stores/orgStore';
 import { useOperationsStore, ActivityEvent } from '../stores/operationsStore';
 import { toast } from 'sonner';
+import { WS_BASE_URL } from '../../../shared/services/api-client';
 
 export const useOperationsTelemetry = () => {
   const currentOrg = useOrgStore((state) => state.currentOrg);
   const { setTelemetryData, addActivityEvent, alerts, setAlerts } = useOperationsStore();
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -16,9 +17,7 @@ export const useOperationsTelemetry = () => {
     if (!currentOrg) return;
 
     const connect = () => {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsHost = process.env.NEXT_PUBLIC_WS_URL || 'localhost:8000';
-      const wsUrl = `${wsProtocol}//${wsHost}/v1/observability/live?org_id=${currentOrg.id}`;
+      const wsUrl = `${WS_BASE_URL}/v1/observability/live?org_id=${currentOrg.id}`;
 
       console.log(`[WebSocket Operations] Connecting to ${wsUrl}`);
       const socket = new WebSocket(wsUrl);
@@ -122,11 +121,11 @@ export const useOperationsTelemetry = () => {
       socket.onclose = (event) => {
         setIsConnected(false);
         console.log('[WebSocket Operations] Link closed:', event.reason);
-        
+
         // Attempt reconnection with exponential backoff capped at 30s
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
         reconnectAttemptsRef.current += 1;
-        
+
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, delay);

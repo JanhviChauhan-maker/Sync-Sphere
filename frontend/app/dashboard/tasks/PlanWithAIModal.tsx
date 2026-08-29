@@ -1734,7 +1734,7 @@ export function PlanWithAIModal({ open, onClose }: { open: boolean; onClose: () 
                                             try {
                                                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
                                                 const res = await fetch(
-                                                    `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/v1/automations/executions/${sessionId}/export?format=${fmt}`,
+                                                    `${API_BASE_URL}/v1/automations/executions/${sessionId}/export?format=${fmt}`,
                                                     { headers: { Authorization: `Bearer ${token}` } }
                                                 );
                                                 if (!res.ok) throw new Error(`Export failed: ${res.statusText}`);
