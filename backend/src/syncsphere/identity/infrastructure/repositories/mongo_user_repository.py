@@ -40,18 +40,18 @@ class MongoUserRepository(UserRepository):
             return None
 
     async def get_by_email(self, email: str) -> Optional[User]:
-        doc = await UserDocument.find_one(UserDocument.email == email.lower().strip())
+        doc = await UserDocument.find_one({"email": email.lower().strip()})
         return IdentityMappers.user_to_domain(doc) if doc else None
 
     async def list_by_org(self, org_id: str, page: int, page_size: int) -> List[User]:
         skip = (page - 1) * page_size
         docs = await UserDocument.find(
-            UserDocument.org_id == org_id
+            {"org_id": org_id}
         ).skip(skip).limit(page_size).to_list()
         return [IdentityMappers.user_to_domain(doc) for doc in docs]
 
     async def count_by_org(self, org_id: str) -> int:
-        return await UserDocument.find(UserDocument.org_id == org_id).count()
+        return await UserDocument.find({"org_id": org_id}).count()
     
     async def update_github_connection(
             self,
