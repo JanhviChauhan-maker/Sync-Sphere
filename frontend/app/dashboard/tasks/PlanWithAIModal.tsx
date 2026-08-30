@@ -341,12 +341,20 @@ export function PlanWithAIModal({ open, onClose }: { open: boolean; onClose: () 
         },
         onError: (e: any) => {
             const status = e?.response?.status;
-            const detail = e?.response?.data?.detail;
+            const data = e?.response?.data || {};
+            const detail = data?.detail || {};
 
-            if (status === 403 && detail?.status === 'authorization_required') {
+            const errStatus = data?.status || detail?.status;
+            const errError = data?.error || detail?.error;
+            const errMissingConns = data?.missing_connections || detail?.missing_connections;
+            const errMessage = data?.message || detail?.message;
+
+            const isMissingConnectionsError = errStatus === 'authorization_required' || errError === 'missing_connections' || Array.isArray(errMissingConns);
+
+            if (status === 403 && isMissingConnectionsError) {
                 setExecuting(true);
                 // Extract structured missing connections or fallback to legacy arrays for backwards compatibility
-                const missingConnectionsObj = detail.missing_connections || [];
+                const missingConnectionsObj = Array.isArray(errMissingConns) ? errMissingConns : [];
                 const reqProviders = missingConnectionsObj.length > 0
                     ? missingConnectionsObj
                     : (detail.missing_providers || detail.required_connections || []).map((p: string) => {
@@ -363,7 +371,7 @@ export function PlanWithAIModal({ open, onClose }: { open: boolean; onClose: () 
                 setExecutionResults({
                     status: 'authorization_required',
                     required_connections: reqProviders,
-                    message: detail.message,
+                    message: errMessage || 'Please authorize the required services to continue.',
                     automations: (plan?.integrations || []).map((a: any) => {
                         const app = a.action.split('.')[0];
                         // check if it's missing by identifier or app grouping
