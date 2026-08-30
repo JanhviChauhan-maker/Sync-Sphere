@@ -112,8 +112,8 @@ class Settings(BaseSettings):
     # AI Config Mapping
     # ------------------------------------------------------------------
     llm_provider: str = "openrouter"
-    llm_api_key: SecretStr = Field(default="mock-api-key-for-local-dev")
-    llm_model: str = "inclusionai/ling-3.0-tiny:free"
+    llm_api_key: SecretStr = Field(default="mock-api-key-for-local-dev", validation_alias="SYNCSPHERE_LLM_API_KEY")
+    llm_model: str = Field(default="openrouter/free", validation_alias="SYNCSPHERE_LLM_MODEL")
     llm_max_tokens: int = 4096
 
     embedding_provider: str = "openai"
