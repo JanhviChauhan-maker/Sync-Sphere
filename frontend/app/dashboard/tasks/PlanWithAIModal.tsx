@@ -503,6 +503,9 @@ export function PlanWithAIModal({ open, onClose }: { open: boolean; onClose: () 
             const requestedAccount = providerStr.includes(':') ? providerStr.split(':')[1] : undefined;
             if (provider === 'google') await integrationApi.connectGoogle(requestedAccount);
             else if (provider === 'slack') await integrationApi.connectSlack(requestedAccount);
+            else if (provider === 'github') await integrationApi.connectGithub(requestedAccount);
+            else if (provider === 'jira') await integrationApi.connectJira(requestedAccount);
+            else if (provider === 'notion') await integrationApi.connectNotion(requestedAccount);
             else window.location.href = `${API_BASE_URL}/v1/connect/${provider}`;
         } catch (e) {
             toast.error('Failed to initiate connection', { description: 'The authentication server might be unavailable.' });

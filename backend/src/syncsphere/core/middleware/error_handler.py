@@ -46,17 +46,23 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         correlation_id = getattr(request.state, "correlation_id", None)
-        detail_msg = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        detail_obj = exc.detail
+        detail_msg = exc.detail.get("message", str(exc.detail)) if isinstance(exc.detail, dict) else (exc.detail if isinstance(exc.detail, str) else str(exc.detail))
         code = "UNAUTHORIZED" if exc.status_code == 401 else ("BAD_REQUEST" if exc.status_code == 400 else f"HTTP_{exc.status_code}")
+        
+        # Merge structured payload dynamically if it is a dict
+        error_content = {
+            "code": code,
+            "message": detail_msg,
+            "docs_url": f"https://docs.syncsphere.ai/errors/{code}"
+        }
+        
         return JSONResponse(
             status_code=exc.status_code,
             content={
-                "error": {
-                    "code": code,
-                    "message": detail_msg,
-                    "docs_url": f"https://docs.syncsphere.ai/errors/{code}"
-                },
-                "detail": detail_msg,
+                "error": error_content,
+                "detail": detail_obj,
+
                 "meta": {
                     "request_id": correlation_id,
                     "timestamp": datetime.utcnow().isoformat() + "Z"
