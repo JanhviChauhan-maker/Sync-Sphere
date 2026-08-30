@@ -166,7 +166,7 @@ async def _post_slack_message_legacy(task: TaskDocument) -> None:
 async def _enforce_task_preflight(automations: list, org_id: str, user_id: str = None) -> None:
     from syncsphere.workflow.application.action_registry import get_action
     
-    missing_providers = []
+    missing_connections = []
     
     for auto in automations:
         if not auto.config: continue
@@ -211,28 +211,60 @@ async def _enforce_task_preflight(automations: list, org_id: str, user_id: str =
                 await get_valid_github_token(organization_id=org_id, requested_account=req_acct_str, user_id=user_id)
         except Exception as exc:
             from syncsphere.connectors.application.exceptions import OAuthError
-            if isinstance(exc, OAuthError) or "missing_oauth" in str(exc) or "not found" in str(exc).lower() or "not authorized" in str(exc).lower() or "no slack workspace" in str(exc).lower() or "no github" in str(exc).lower():
-                key = f"{provider}:{req_acct_str}" if req_acct_str else provider
-                if key not in missing_providers:
-                    missing_providers.append(key)
+            exc_str = str(exc).lower()
+            if isinstance(exc, OAuthError) or "missing_oauth" in exc_str or "not found" in exc_str or "not authorized" in exc_str or "no slack workspace" in exc_str or "no github" in exc_str or "expired" in exc_str or "revoked" in exc_str or "permission denied" in exc_str:
+                
+                # Determine display name
+                if provider in ["gmail", "google_calendar", "google_sheets", "google"]:
+                    display_name = "Google (Gmail/Calendar/Sheets)"
+                    identifier = "google"
+                elif provider == "slack":
+                    display_name = "Slack"
+                    identifier = "slack"
+                elif provider == "github":
+                    display_name = "GitHub"
+                    identifier = "github"
+                else:
+                    display_name = provider.replace('_', ' ').title()
+                    identifier = provider
+                
+                # Determine action and status
+                if "revoked" in exc_str or "expired" in exc_str or "invalid_grant" in exc_str or "permission denied" in exc_str:
+                    connection_status = "expired" if "expired" in exc_str else "revoked"
+                    action_required = "reconnect"
+                else:
+                    connection_status = "disconnected"
+                    action_required = "connect"
+                
+                # Filter out duplicates
+                dup = next((m for m in missing_connections if m["identifier"] == identifier and m["account"] == req_acct_str), None)
+                if not dup:
+                    missing_connections.append({
+                        "identifier": identifier,
+                        "display_name": display_name,
+                        "connection_status": connection_status,
+                        "action_required": action_required,
+                        "account": req_acct_str
+                    })
 
-    if missing_providers:
+    if missing_connections:
         from fastapi import HTTPException
-        clean_providers = [p.split(":")[0] for p in missing_providers]
         
         acct_msgs = []
-        for p in missing_providers:
-            if ":" in p:
-                parts = p.split(":", 1)
-                acct_msgs.append(f"Missing OAuth connection for {parts[0].replace('_', ' ').title()} account: {parts[1]}")
+        for p in missing_connections:
+            if p["account"]:
+                acct_msgs.append(f"Missing OAuth connection for {p['display_name']} account: {p['account']}")
+            else:
+                acct_msgs.append(f"Missing OAuth connection for {p['display_name']}")
                 
-        msg = "\n".join(acct_msgs) if acct_msgs else f"Missing OAuth connections for: {', '.join(set(clean_providers))}"
+        msg = "\n".join(acct_msgs)
         
         raise HTTPException(
             status_code=403,
             detail={
                 "status": "authorization_required",
-                "missing_providers": missing_providers,
+                "missing_connections": missing_connections,
+                "error": "missing_connections",
                 "message": msg
             }
         )

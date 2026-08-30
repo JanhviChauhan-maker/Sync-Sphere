@@ -345,14 +345,30 @@ export function PlanWithAIModal({ open, onClose }: { open: boolean; onClose: () 
 
             if (status === 403 && detail?.status === 'authorization_required') {
                 setExecuting(true);
-                const reqProviders = detail.missing_providers || detail.required_connections || [];
+                // Extract structured missing connections or fallback to legacy arrays for backwards compatibility
+                const missingConnectionsObj = detail.missing_connections || [];
+                const reqProviders = missingConnectionsObj.length > 0
+                    ? missingConnectionsObj
+                    : (detail.missing_providers || detail.required_connections || []).map((p: string) => {
+                        const parts = p.split(':');
+                        return {
+                            identifier: parts[0],
+                            display_name: parts[0],
+                            connection_status: 'disconnected',
+                            action_required: 'connect',
+                            account: parts.length > 1 ? parts[1] : null
+                        };
+                    });
+
                 setExecutionResults({
                     status: 'authorization_required',
                     required_connections: reqProviders,
                     message: detail.message,
                     automations: (plan?.integrations || []).map((a: any) => {
                         const app = a.action.split('.')[0];
-                        if (reqProviders.some((p: string) => p.split(':')[0] === app) || (reqProviders.some((p: string) => p.split(':')[0] === 'google') && ['gmail', 'google_calendar', 'google_sheets'].includes(app))) {
+                        // check if it's missing by identifier or app grouping
+                        const isMissing = reqProviders.some((p: any) => p.identifier === app || (p.identifier === 'google' && ['gmail', 'google_calendar', 'google_sheets'].includes(app)));
+                        if (isMissing) {
                             return { action: a.action, status: 'blocked', error: `Authorization required. Please connect ${app.replace('_', ' ')}.` };
                         }
                         return { action: a.action, status: 'pending' };
@@ -855,14 +871,38 @@ export function PlanWithAIModal({ open, onClose }: { open: boolean; onClose: () 
                 {executing && (
                     <div className="flex-1 overflow-y-auto bg-[#09090b] p-6 md:p-12 relative flex flex-col items-center justify-start scroll-smooth w-full">
                         {executionResults?.status === 'authorization_required' ? (
-                            <>
+                            <div className="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300 w-full max-w-2xl py-8">
                                 <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
-                                    <div className="absolute inset-0 border-4 border-red-500/20 rounded-full"></div>
-                                    <AlertCircle className="h-10 w-10 text-red-500" />
+                                    <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full"></div>
+                                    <AlertCircle className="h-10 w-10 text-amber-500 animate-pulse" />
                                 </div>
-                                <h2 className="text-2xl font-bold mb-2 text-red-600">Authorization Required</h2>
-                                <p className="text-muted-foreground max-w-lg text-center">{executionResults.message || 'Please authorize the required services to continue.'}</p>
-                            </>
+                                <h2 className="text-2xl font-bold mb-2 text-amber-600">Connection Required</h2>
+                                <p className="text-muted-foreground text-center mb-8">
+                                    Validation failed before execution. You must authorize the following services to continue. No actions have been executed.
+                                </p>
+
+                                <div className="w-full space-y-4">
+                                    {(executionResults.required_connections || []).map((conn: any, i: number) => {
+                                        const isReconnect = conn.action_required === 'reconnect';
+                                        return (
+                                            <div key={i} className="flex items-center justify-between p-4 bg-muted/20 border border-border rounded-xl">
+                                                <div className="flex flex-col">
+                                                    <span className="font-semibold text-foreground">{conn.display_name}</span>
+                                                    {conn.account && <span className="text-xs text-muted-foreground font-mono">{conn.account}</span>}
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <span className={`text-xs font-bold px-2 py-1 rounded-md ${isReconnect ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                                                        {conn.connection_status === 'expired' ? 'Token Expired' : conn.connection_status === 'revoked' ? 'Access Revoked' : 'Not Connected'}
+                                                    </span>
+                                                    <Button variant="default" size="sm" onClick={() => handleConnect(`${conn.identifier}${conn.account ? ':' + conn.account : ''}`)}>
+                                                        {isReconnect ? 'Reconnect' : 'Connect'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         ) : executionResults?.status === 'done' ? (() => {
                             const executedAutomations = currentTask?.automations || executionResults?.automations || [];
                             const hasFailed = executedAutomations.some((a: any) => a.status === 'failed' || a.status === 'blocked');
