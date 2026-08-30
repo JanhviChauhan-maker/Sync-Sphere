@@ -209,10 +209,13 @@ async def _enforce_task_preflight(automations: list, org_id: str, user_id: str =
             elif provider == "github":
                 from syncsphere.connectors.application.github_token_service import get_valid_github_token
                 await get_valid_github_token(organization_id=org_id, requested_account=req_acct_str, user_id=user_id)
+            elif provider == "notion":
+                from syncsphere.connectors.presentation.notion_actions import _get_notion_token
+                await _get_notion_token(organization_id=org_id, user_id=user_id)
         except Exception as exc:
             from syncsphere.connectors.application.exceptions import OAuthError
             exc_str = str(exc).lower()
-            if isinstance(exc, OAuthError) or "missing_oauth" in exc_str or "not found" in exc_str or "not authorized" in exc_str or "no slack workspace" in exc_str or "no github" in exc_str or "expired" in exc_str or "revoked" in exc_str or "permission denied" in exc_str:
+            if isinstance(exc, OAuthError) or "missing_oauth" in exc_str or "not found" in exc_str or "not authorized" in exc_str or "no slack workspace" in exc_str or "no github" in exc_str or "no notion" in exc_str or "expired" in exc_str or "revoked" in exc_str or "permission denied" in exc_str:
                 
                 # Determine display name
                 if provider in ["gmail", "google_calendar", "google_sheets", "google"]:

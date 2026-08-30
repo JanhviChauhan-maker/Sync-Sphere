@@ -42,9 +42,9 @@ class RedisEventBus(EventPublisher, EventSubscriber):
         pubsub = self.redis.pubsub()
         channel_pattern = "syncsphere:events:*"
         logger.info("Starting Redis Pub/Sub pattern listener on: %s", channel_pattern)
-        await pubsub.psubscribe(channel_pattern)
         
         try:
+            await pubsub.psubscribe(channel_pattern)
             while self._listener_running:
                 # Poll for messages with a timeout to allow loop exit checks
                 message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
@@ -66,17 +66,20 @@ class RedisEventBus(EventPublisher, EventSubscriber):
                 try:
                     payload = json.loads(data)
                     # Resolve handler callbacks in parallel
-                    # (In a real system, we wrap them in BaseEvent instances using registry mappings)
-                    # For core foundation, we propagate raw payload / reconstructed base event.
                     event_obj = BaseEvent.model_validate(payload)
                     await asyncio.gather(*(h(event_obj) for h in handlers), return_exceptions=True)
                 except Exception as e:
                     logger.error("Error dispatching event %s: %s", event_type, str(e), exc_info=True)
         except asyncio.CancelledError:
             logger.info("Event bus listener task was cancelled.")
+        except Exception as e:
+            logger.warning("Redis event listener encountered an error and stopped gracefully: %s", str(e))
         finally:
-            await pubsub.punsubscribe(channel_pattern)
-            await pubsub.close()
+            try:
+                await pubsub.punsubscribe(channel_pattern)
+                await pubsub.close()
+            except Exception:
+                pass
             self._listener_running = False
 
     async def stop(self) -> None:

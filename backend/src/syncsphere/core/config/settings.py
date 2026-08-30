@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, AliasChoices
 
 from .app import AppConfig, Environment
 from .database import DatabaseConfig
@@ -91,7 +91,10 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Redis Config Mapping
     # ------------------------------------------------------------------
-    redis_uri: str = "redis://localhost:6379/0"
+    redis_uri: str = Field(
+        default="redis://localhost:6379/0",
+        validation_alias=AliasChoices("REDIS_URL", "SYNCSPHERE_REDIS_URI")
+    )
     redis_max_connections: int = 50
 
     # ------------------------------------------------------------------
